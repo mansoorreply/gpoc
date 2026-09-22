@@ -4,6 +4,7 @@ import { MatButton } from '@angular/material/button';
 import { MatTabLink, MatTabNav, MatTabNavPanel } from '@angular/material/tabs';
 import { EngagementService } from '../core/engagement.service';
 import { StepId } from '../core/engagement.models';
+import { TelemetryPanel } from '../shared/telemetry-panel.component';
 
 interface PortalTab {
   id: StepId;
@@ -21,6 +22,7 @@ interface PortalTab {
     MatTabNav,
     MatTabNavPanel,
     MatTabLink,
+    TelemetryPanel,
   ],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss',

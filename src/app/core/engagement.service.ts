@@ -1,4 +1,4 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   ActivityProgress,
   ActivityStatus,
@@ -6,12 +6,14 @@ import {
   EngagementPlanItem,
   EngagementState,
   HistoryEntry,
+  IntakePhase,
   Persona,
   PlanActivity,
   Scenario,
   StepId,
 } from './engagement.models';
 import { SCENARIOS, matchScenario } from './scenarios';
+import { TelemetryService } from './telemetry.service';
 
 const INTRO_MESSAGE =
   "I'm running your first Use-Case Draft — tell me about the account in your own words. I'll ask a few follow-ups, then build the board.";
@@ -48,6 +50,25 @@ const OUTCOME_SUGGESTIONS = [
 const HEADCOUNT_SUGGESTIONS = ['4', '5', '6', '8'];
 
 const TERMINAL_STATUSES: ReadonlySet<ActivityStatus> = new Set(['done', 'skipped']);
+
+/** Turns each intake answer into a readable sentence, value included. */
+const INTAKE_SENTENCE: Record<IntakePhase, (value: string) => string> = {
+  customer: (v) => `Customer captured as ${v}`,
+  size: (v) => `Company size captured as ${v}`,
+  industry: (v) => `Industry & stack captured as ${v}`,
+  pain: (v) => `Pain point captured as ${v}`,
+  outcome: (v) => `CXO outcome captured as ${v}`,
+  headcount: (v) => `Session headcount captured as ${v}`,
+  done: () => 'Intake completed',
+};
+
+/** How each activity status reads once applied to an activity. */
+const STATUS_SENTENCE: Record<ActivityStatus, (title: string) => string> = {
+  not_started: (t) => `“${t}” reset to not started`,
+  in_progress: (t) => `“${t}” marked as in progress`,
+  done: (t) => `“${t}” marked as completed`,
+  skipped: (t) => `“${t}” marked as skipped`,
+};
 
 function createEmptyProgress(activityId: string): ActivityProgress {
   return {
@@ -109,6 +130,7 @@ function createInitialState(): EngagementState {
 
 @Injectable({ providedIn: 'root' })
 export class EngagementService {
+  private readonly telemetry = inject(TelemetryService);
   private readonly state = signal<EngagementState>(createInitialState());
 
   readonly customerName = computed(() => this.state().customerName);
@@ -192,6 +214,8 @@ export class EngagementService {
 
     const messages = [...current.messages, { role: 'partner' as const, text: trimmed }];
 
+    this.telemetry.record('intake', INTAKE_SENTENCE[current.phase](trimmed));
+
     switch (current.phase) {
       case 'customer':
         this.state.set({
@@ -268,6 +292,10 @@ export class EngagementService {
       selectedProducts: [],
       cycleComplete: false,
     }));
+    this.telemetry.record(
+      'plan',
+      `Plan created with ${plans.length} ${plans.length === 1 ? 'activity' : 'activities'}`,
+    );
   }
 
   addPlan(item: Pick<PlanActivity, 'title' | 'purpose' | 'duration'> & { detail?: string }): void {
@@ -300,15 +328,20 @@ export class EngagementService {
       planAccepted: false,
       collect: null,
     }));
+    this.telemetry.record('plan', `Activity “${title}” added to the plan`);
   }
 
   removePlan(id: string): void {
+    const removed = this.state().customPlans.find((item) => item.id === id);
     this.state.update((current) => ({
       ...current,
       customPlans: current.customPlans.filter((item) => item.id !== id),
       planAccepted: false,
       collect: null,
     }));
+    if (removed) {
+      this.telemetry.record('plan', `Activity “${removed.title}” removed from the plan`);
+    }
   }
 
   updateActivityProgress(
@@ -343,6 +376,42 @@ export class EngagementService {
         submitted: false,
       },
     }));
+
+    const title = this.plans().find((plan) => plan.id === activityId)?.title ?? activityId;
+
+    if (patch.status !== undefined && patch.status !== existing.status) {
+      this.telemetry.record('collect', STATUS_SENTENCE[patch.status](title));
+    }
+    if (patch.comments !== undefined && patch.comments !== existing.comments) {
+      this.telemetry.record(
+        'collect',
+        patch.comments
+          ? `Notes ${existing.comments ? 'updated' : 'added'} for “${title}”`
+          : `Notes cleared for “${title}”`,
+      );
+    }
+    if (patch.decisions !== undefined && patch.decisions !== existing.decisions) {
+      this.telemetry.record(
+        'collect',
+        patch.decisions
+          ? `Decisions ${existing.decisions ? 'updated' : 'recorded'} for “${title}”`
+          : `Decisions cleared for “${title}”`,
+      );
+    }
+    if (patch.fileNames !== undefined) {
+      const added = patch.fileNames.length - existing.fileNames.length;
+      if (added > 0) {
+        this.telemetry.record(
+          'collect',
+          `${added} file${added === 1 ? '' : 's'} attached to “${title}”`,
+        );
+      } else if (added < 0) {
+        this.telemetry.record(
+          'collect',
+          `${-added} file${added === -1 ? '' : 's'} removed from “${title}”`,
+        );
+      }
+    }
   }
 
   submitCollect(): boolean {
@@ -355,6 +424,11 @@ export class EngagementService {
       ...state,
       collect: state.collect ? { ...state.collect, submitted: true } : null,
     }));
+    const progress = countTerminal(this.state().collect);
+    this.telemetry.record(
+      'collect',
+      `Activities submitted — ${progress.done}/${progress.total} completed`,
+    );
     return true;
   }
 
@@ -363,6 +437,7 @@ export class EngagementService {
       return;
     }
 
+    const wasSelected = this.state().selectedProducts.includes(name);
     this.state.update((current) => {
       const exists = current.selectedProducts.includes(name);
       const selectedProducts = exists
@@ -370,6 +445,10 @@ export class EngagementService {
         : [...current.selectedProducts, name];
       return { ...current, selectedProducts, cycleComplete: false };
     });
+    this.telemetry.record(
+      'run',
+      wasSelected ? `Solution “${name}” deselected` : `Solution “${name}” selected`,
+    );
   }
 
   completeCycle(): void {
@@ -377,6 +456,10 @@ export class EngagementService {
       return;
     }
     this.state.update((current) => ({ ...current, cycleComplete: true }));
+    this.telemetry.record(
+      'run',
+      `Engagement cycle completed with ${this.state().selectedProducts.join(', ')}`,
+    );
   }
 
   isUnlocked(step: StepId): boolean {
@@ -423,6 +506,7 @@ export class EngagementService {
 
   reset(): void {
     this.state.set(createInitialState());
+    this.telemetry.record('system', 'Demo reset');
   }
 
   private buildHistory(current: EngagementState, scenario: Scenario | null): HistoryEntry[] {
