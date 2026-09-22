@@ -80,24 +80,24 @@
                 [class.manual]="item.source === 'manual'"
                 (click)="selectActivity(item)"
               >
-                <span class="step-index">{{ index + 1 }}</span>
-                <span class="node-body">
+                <span class="node-header">
+                  <span class="step-index">{{ index + 1 }}</span>
                   <span class="node-title">{{ item.title }}</span>
-                  <span class="node-purpose">{{ item.purpose }}</span>
-                  <span class="node-meta">
-                    <span>{{ item.duration }}</span>
-                    @if (item.source === 'ai') {
-                      <span class="tag ai">AI</span>
-                    } @else {
-                      <span class="tag manual">Manual</span>
-                    }
-                  </span>
+                </span>
+                <span class="node-purpose">{{ item.purpose }}</span>
+                <span class="node-meta">
+                  <span>{{ item.duration }}</span>
+                  @if (item.source === 'ai') {
+                    <span class="tag ai">AI</span>
+                  } @else {
+                    <span class="tag manual">Manual</span>
+                  }
                 </span>
               </button>
-              @if (!last) {
-                <div class="connector" aria-hidden="true"></div>
-              }
             </div>
+            @if (!last) {
+              <div class="connector" aria-hidden="true"></div>
+            }
           }
         </div>
       </section>

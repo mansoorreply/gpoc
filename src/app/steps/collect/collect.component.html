@@ -36,32 +36,32 @@
                 [attr.data-status]="statusFor(item.id)"
                 (click)="selectActivity(item)"
               >
-                <span class="step-index">{{ index + 1 }}</span>
-                <span class="node-body">
+                <span class="node-header">
+                  <span class="step-index">{{ index + 1 }}</span>
                   <span class="node-title">{{ item.title }}</span>
-                  <span class="node-purpose">{{ item.purpose }}</span>
-                  <span class="node-meta">
-                    <span>{{ item.duration }}</span>
-                    <span class="status-chip" [attr.data-status]="statusFor(item.id)">
-                      {{ statusLabel(statusFor(item.id)) }}
-                    </span>
-                    @if (canQuickSkip(item.id)) {
-                      <button
-                        mat-stroked-button
-                        type="button"
-                        class="skip-btn"
-                        (click)="skipActivity(item, $event)"
-                      >
-                        Skip
-                      </button>
-                    }
+                </span>
+                <span class="node-purpose">{{ item.purpose }}</span>
+                <span class="node-meta">
+                  <span>{{ item.duration }}</span>
+                  <span class="status-chip" [attr.data-status]="statusFor(item.id)">
+                    {{ statusLabel(statusFor(item.id)) }}
                   </span>
+                  @if (canQuickSkip(item.id)) {
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      class="skip-btn"
+                      (click)="skipActivity(item, $event)"
+                    >
+                      Skip
+                    </button>
+                  }
                 </span>
               </button>
-              @if (!last) {
-                <div class="connector" aria-hidden="true"></div>
-              }
             </div>
+            @if (!last) {
+              <div class="connector" aria-hidden="true"></div>
+            }
           }
         </div>
       </section>
