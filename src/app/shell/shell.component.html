@@ -1,0 +1,46 @@
+<div class="portal">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">G</span>
+      <div>
+        <p class="eyebrow">Google solutions</p>
+        <h1>Partner portal</h1>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="pill">Partner · Northstar Partners</span>
+      @if (engagement.customerName()) {
+        <span class="pill">Customer · {{ engagement.customerName() }}</span>
+      }
+      <button mat-stroked-button type="button" (click)="reset()">Reset demo</button>
+    </div>
+  </header>
+
+  <nav mat-tab-nav-bar [tabPanel]="tabPanel" aria-label="Engagement steps">
+    @for (tab of tabs; track tab.id) {
+      <a
+        mat-tab-link
+        [routerLink]="tab.path"
+        routerLinkActive
+        #link="routerLinkActive"
+        [active]="link.isActive"
+        [disabled]="!engagement.isUnlocked(tab.id)"
+        (click)="guardTab($event, tab.id)"
+      >
+        @if (engagement.isComplete(tab.id)) {
+          <span class="done" aria-hidden="true">✓</span>
+        }
+        {{ tab.label }}
+      </a>
+    }
+  </nav>
+
+  <mat-tab-nav-panel #tabPanel>
+    <div class="workspace">
+      <main class="content">
+        <router-outlet />
+      </main>
+      <app-engagement-history />
+    </div>
+  </mat-tab-nav-panel>
+</div>

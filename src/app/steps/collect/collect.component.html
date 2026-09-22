@@ -1,0 +1,81 @@
+<section class="panel">
+  <header class="intro">
+    <h2>Collect</h2>
+    <p>Capture a few details and any documents for {{ engagement.customerName() }}.</p>
+  </header>
+
+  <form class="grid" [formGroup]="form" (ngSubmit)="submit()">
+    <mat-form-field appearance="outline">
+      <mat-label>Industry</mat-label>
+      <mat-select formControlName="industry" [errorStateMatcher]="matcher">
+        @for (option of industries; track option) {
+          <mat-option [value]="option">{{ option }}</mat-option>
+        }
+      </mat-select>
+      @if (attempted() && form.controls.industry.invalid) {
+        <mat-error>Industry is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Region</mat-label>
+      <mat-select formControlName="region" [errorStateMatcher]="matcher">
+        @for (option of regions; track option) {
+          <mat-option [value]="option">{{ option }}</mat-option>
+        }
+      </mat-select>
+      @if (attempted() && form.controls.region.invalid) {
+        <mat-error>Region is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Timeline</mat-label>
+      <mat-select formControlName="timeline" [errorStateMatcher]="matcher">
+        @for (option of timelines; track option) {
+          <mat-option [value]="option">{{ option }}</mat-option>
+        }
+      </mat-select>
+      @if (attempted() && form.controls.timeline.invalid) {
+        <mat-error>Timeline is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Budget band</mat-label>
+      <mat-select formControlName="budgetBand" [errorStateMatcher]="matcher">
+        @for (option of budgets; track option) {
+          <mat-option [value]="option">{{ option }}</mat-option>
+        }
+      </mat-select>
+      @if (attempted() && form.controls.budgetBand.invalid) {
+        <mat-error>Budget band is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="wide">
+      <mat-label>Primary contact</mat-label>
+      <input matInput formControlName="primaryContact" autocomplete="name" [errorStateMatcher]="matcher" />
+      @if (attempted() && form.controls.primaryContact.invalid) {
+        <mat-error>Primary contact is required</mat-error>
+      }
+    </mat-form-field>
+
+    <label class="upload wide">
+      Documents
+      <input type="file" multiple (change)="onFiles($event)" />
+    </label>
+
+    @if (fileNames().length) {
+      <ul class="files wide">
+        @for (name of fileNames(); track name) {
+          <li>{{ name }}</li>
+        }
+      </ul>
+    }
+
+    <div class="actions wide">
+      <button mat-flat-button color="primary" type="submit">Submit details</button>
+    </div>
+  </form>
+</section>

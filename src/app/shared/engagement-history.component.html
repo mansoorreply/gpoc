@@ -1,0 +1,41 @@
+<aside
+  class="history"
+  [class.collapsed]="collapsed()"
+  [attr.aria-label]="collapsed() ? 'Engagement history, collapsed' : 'Engagement history'"
+>
+  <header class="bar">
+    @if (!collapsed()) {
+      <div>
+        <p class="eyebrow">This engagement</p>
+        <h2>Workflow history</h2>
+      </div>
+    }
+    <button
+      mat-icon-button
+      type="button"
+      (click)="toggle()"
+      [attr.aria-expanded]="!collapsed()"
+      [attr.aria-label]="collapsed() ? 'Expand workflow history' : 'Collapse workflow history'"
+    >
+      <mat-icon>{{ collapsed() ? 'chevron_left' : 'chevron_right' }}</mat-icon>
+    </button>
+  </header>
+
+  @if (!collapsed()) {
+    <ol class="timeline">
+      @for (entry of engagement.history(); track entry.id) {
+        <li [class]="entry.status">
+          <span class="marker" aria-hidden="true"></span>
+          <div class="body">
+            @if (engagement.isUnlocked(entry.step)) {
+              <a [routerLink]="'/' + entry.step">{{ entry.title }}</a>
+            } @else {
+              <span class="title">{{ entry.title }}</span>
+            }
+            <p>{{ entry.detail }}</p>
+          </div>
+        </li>
+      }
+    </ol>
+  }
+</aside>

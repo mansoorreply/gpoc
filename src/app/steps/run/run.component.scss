@@ -1,0 +1,118 @@
+.intro h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.intro > p {
+  margin: 0 0 1rem;
+  color: #44556b;
+}
+
+.problem {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  background: #fff;
+  border: 1px solid #d5deea;
+  border-radius: 0.75rem;
+}
+
+.problem strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  color: #174ea6;
+}
+
+.problem p {
+  margin: 0;
+  color: #44556b;
+}
+
+.tab-body {
+  padding-top: 1rem;
+}
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.section-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.empty {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px dashed #c5d0e0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.empty p {
+  margin: 0;
+  color: #44556b;
+}
+
+.hint {
+  margin: 0 0 1rem;
+  color: #44556b;
+}
+
+.cards {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.cards mat-card.selected {
+  border: 1px solid #1a73e8;
+  box-shadow: 0 0 0 1px rgba(26, 115, 232, 0.12);
+}
+
+mat-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.info-btn {
+  flex-shrink: 0;
+  color: #5f6368;
+}
+
+.fit {
+  margin: 0 0 0.75rem;
+}
+
+.summary {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  background: #fff;
+  border: 1px solid #d5deea;
+  border-radius: 0.75rem;
+}
+
+.summary p {
+  margin: 0.25rem 0;
+}
+
+.success {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 0.75rem;
+  background: #e6f4ea;
+  color: #0d652d;
+}

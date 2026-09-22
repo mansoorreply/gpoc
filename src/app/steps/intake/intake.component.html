@@ -1,0 +1,43 @@
+<section class="panel">
+  <header class="intro">
+    <h2>Intake</h2>
+    <p>Describe the customer pain point. Suggested replies keep the demo moving.</p>
+  </header>
+
+  <div class="thread" aria-live="polite">
+    @for (message of engagement.messages(); track $index) {
+      <article class="bubble" [class.partner]="message.role === 'partner'">
+        <p class="who">{{ message.role === 'assistant' ? 'Assistant' : 'You' }}</p>
+        <p>{{ message.text }}</p>
+      </article>
+    }
+  </div>
+
+  @if (engagement.phase() !== 'done') {
+    @if (engagement.suggestions().length) {
+      <div class="chips" aria-label="Suggested replies">
+        @for (chip of engagement.suggestions(); track chip) {
+          <button type="button" mat-stroked-button (click)="send(chip)">{{ chip }}</button>
+        }
+      </div>
+    }
+
+    <form class="composer" (ngSubmit)="send()">
+      <mat-form-field appearance="outline" class="field">
+        <mat-label>Reply</mat-label>
+        <input
+          matInput
+          name="reply"
+          [(ngModel)]="draft"
+          autocomplete="off"
+          (keydown.enter)="$event.preventDefault(); send()"
+        />
+      </mat-form-field>
+      <button mat-flat-button color="primary" type="submit" [disabled]="!draft.trim()">Send</button>
+    </form>
+  } @else {
+    <button mat-flat-button color="primary" type="button" (click)="continueToPlan()">
+      Continue to plan
+    </button>
+  }
+</section>

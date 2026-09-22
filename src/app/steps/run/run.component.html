@@ -1,0 +1,139 @@
+<section class="panel">
+  <header class="intro">
+    <h2>Run</h2>
+    <p>
+      Choose Google product solutions for {{ engagement.customerName() }} based on
+      {{ engagement.scenario()?.label }}.
+    </p>
+    @if (engagement.scenario()?.problemStatement; as problem) {
+      <aside class="problem">
+        <strong>Problem statement</strong>
+        <p>{{ problem }}</p>
+      </aside>
+    }
+  </header>
+
+  <mat-tab-group
+    animationDuration="200ms"
+    [selectedIndex]="selectedTab()"
+    (selectedIndexChange)="onTabChange($event)"
+  >
+    <mat-tab label="Implementation">
+      <div class="tab-body">
+        @if (!engagement.selectedProducts().length) {
+          <div class="empty">
+            <p>No solutions selected for implementation yet.</p>
+            <button mat-flat-button color="primary" type="button" (click)="showAiSuggestions()">
+              Show AI suggested solutions
+            </button>
+          </div>
+        } @else {
+          <div class="section-head">
+            <h3>Selected for implementation</h3>
+            <button mat-stroked-button type="button" (click)="showAiSuggestions()">
+              Show AI suggested solutions
+            </button>
+          </div>
+
+          <div class="cards">
+            @for (solution of engagement.selectedProductDetails(); track solution.name) {
+              <mat-card>
+                <mat-card-header>
+                  <mat-card-title>{{ solution.name }}</mat-card-title>
+                </mat-card-header>
+                <mat-card-content>
+                  <p>{{ solution.fit }}</p>
+                  <mat-chip-set aria-label="Google products">
+                    @for (product of solution.googleProducts; track product) {
+                      <mat-chip>{{ product }}</mat-chip>
+                    }
+                  </mat-chip-set>
+                </mat-card-content>
+              </mat-card>
+            }
+          </div>
+        }
+
+        @if (engagement.scenario(); as scenario) {
+          <aside class="summary">
+            <p>Illustrative deal value {{ money(scenario.dealValue) }}</p>
+            <p>
+              Partner commission {{ scenario.commissionPercent }}% ·
+              {{ money(engagement.commissionAmount()) }}
+            </p>
+          </aside>
+        }
+
+        @if (engagement.cycleComplete()) {
+          <p class="success" role="status">
+            Cycle complete. The partner incentive for Northstar Partners is recorded for this
+            engagement.
+          </p>
+        } @else {
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            [disabled]="!engagement.selectedProducts().length"
+            (click)="complete()"
+          >
+            Mark cycle complete
+          </button>
+        }
+      </div>
+    </mat-tab>
+
+    <mat-tab label="AI suggested solutions">
+      <div class="tab-body">
+        <p class="hint">
+          AI-recommended Google solution combinations for this assessment. Select the ones to use
+          in the actual implementation.
+        </p>
+
+        <div class="cards">
+          @for (solution of engagement.scenario()?.products ?? []; track solution.name) {
+            <mat-card [class.selected]="engagement.selectedProducts().includes(solution.name)">
+              <mat-card-header>
+                <mat-card-title>
+                  <span>{{ solution.name }}</span>
+                  <button
+                    mat-icon-button
+                    type="button"
+                    class="info-btn"
+                    [matTooltip]="solution.rationale"
+                    matTooltipShowDelay="100"
+                    aria-label="Why this solution is suggested"
+                  >
+                    <mat-icon>info</mat-icon>
+                  </button>
+                </mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p class="fit">{{ solution.fit }}</p>
+                <mat-chip-set aria-label="Google products in this combination">
+                  @for (product of solution.googleProducts; track product) {
+                    <mat-chip>{{ product }}</mat-chip>
+                  }
+                </mat-chip-set>
+              </mat-card-content>
+              <mat-card-actions>
+                <mat-checkbox
+                  [checked]="engagement.selectedProducts().includes(solution.name)"
+                  (change)="setProduct(solution.name, $event.checked)"
+                >
+                  Use for implementation
+                </mat-checkbox>
+              </mat-card-actions>
+            </mat-card>
+          }
+        </div>
+
+        @if (engagement.selectedProducts().length) {
+          <button mat-flat-button color="primary" type="button" (click)="selectedTab.set(0)">
+            Continue with {{ engagement.selectedProducts().length }} selected
+          </button>
+        }
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</section>
