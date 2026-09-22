@@ -5,7 +5,6 @@ import { TelemetryCategory, TelemetryService } from '../core/telemetry.service';
 
 const CATEGORY_META: Record<TelemetryCategory, { label: string; icon: string }> = {
   system: { label: 'System', icon: 'settings' },
-  navigation: { label: 'Navigation', icon: 'my_location' },
   intake: { label: 'Intake', icon: 'chat' },
   plan: { label: 'Plan', icon: 'checklist' },
   collect: { label: 'Collect', icon: 'fact_check' },
