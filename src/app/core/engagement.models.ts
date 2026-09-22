@@ -1,6 +1,13 @@
 export type StepId = 'intake' | 'plan' | 'collect' | 'run';
 
-export type IntakePhase = 'name' | 'size' | 'pain' | 'followup' | 'done';
+export type IntakePhase =
+  | 'customer'
+  | 'size'
+  | 'industry'
+  | 'pain'
+  | 'outcome'
+  | 'headcount'
+  | 'done';
 
 export type MessageRole = 'assistant' | 'partner';
 
@@ -55,8 +62,10 @@ export interface CollectDetails {
 export interface EngagementState {
   customerName: string;
   companySize: string;
+  industryStack: string;
   scenarioId: string | null;
-  followUpAnswer: string;
+  cxoOutcome: string;
+  sessionHeadcount: string;
   messages: ChatMessage[];
   phase: IntakePhase;
   intakeComplete: boolean;

@@ -10,27 +10,53 @@ import {
 } from './engagement.models';
 import { SCENARIOS, matchScenario } from './scenarios';
 
-const NAME_SUGGESTIONS = [
+const INTRO_MESSAGE =
+  "I'm running your first Use-Case Draft — tell me about the account in your own words. I'll ask a few follow-ups, then build the board.";
+
+const QUESTIONS = {
+  customer: "Who's the customer we're running this hackathon for?",
+  size: 'What is the company size?',
+  industry:
+    "What industry are they in, and what does their stack look like? (Apps, cloud, data — whatever you'd tell a PDM.)",
+  pain: "What pain actually booked this meeting? Say it like you'd say it in the room.",
+  outcome: 'What outcome is the CXO trying to buy? Numbers welcome.',
+  headcount: 'How many people in the session — including at least one CXO? (4–8)',
+} as const;
+
+const CUSTOMER_SUGGESTIONS = [
   'Northwind Retail',
   'Helios Health',
   'Apex Logistics',
   'Summit Mutual Insurance',
 ];
 const SIZE_SUGGESTIONS = ['50–200', '200–1,000', '1,000+'];
+const INDUSTRY_SUGGESTIONS = [
+  'Retail · GCP + POS apps',
+  'Healthcare · EHR + BigQuery',
+  'Logistics · SAP + GKE',
+  'Insurance · Guidewire + Document AI',
+];
+const OUTCOME_SUGGESTIONS = [
+  'Cut cloud spend 20%',
+  'Unify data for one CX view',
+  'Pass audit in 90 days',
+  'Ship modernization MVP in 6 weeks',
+];
+const HEADCOUNT_SUGGESTIONS = ['4', '5', '6', '8'];
 
 function createInitialState(): EngagementState {
   return {
     customerName: '',
     companySize: '',
+    industryStack: '',
     scenarioId: null,
-    followUpAnswer: '',
+    cxoOutcome: '',
+    sessionHeadcount: '',
     messages: [
-      {
-        role: 'assistant',
-        text: 'What is the customer name?',
-      },
+      { role: 'assistant', text: INTRO_MESSAGE },
+      { role: 'assistant', text: QUESTIONS.customer },
     ],
-    phase: 'name',
+    phase: 'customer',
     intakeComplete: false,
     planAccepted: false,
     customPlans: [],
@@ -46,7 +72,9 @@ export class EngagementService {
 
   readonly customerName = computed(() => this.state().customerName);
   readonly companySize = computed(() => this.state().companySize);
-  readonly followUpAnswer = computed(() => this.state().followUpAnswer);
+  readonly industryStack = computed(() => this.state().industryStack);
+  readonly cxoOutcome = computed(() => this.state().cxoOutcome);
+  readonly sessionHeadcount = computed(() => this.state().sessionHeadcount);
   readonly messages = computed(() => this.state().messages);
   readonly phase = computed(() => this.state().phase);
   readonly intakeComplete = computed(() => this.state().intakeComplete);
@@ -87,14 +115,18 @@ export class EngagementService {
 
   readonly suggestions = computed(() => {
     switch (this.state().phase) {
-      case 'name':
-        return NAME_SUGGESTIONS;
+      case 'customer':
+        return CUSTOMER_SUGGESTIONS;
       case 'size':
         return SIZE_SUGGESTIONS;
+      case 'industry':
+        return INDUSTRY_SUGGESTIONS;
       case 'pain':
         return SCENARIOS.map((scenario) => scenario.label);
-      case 'followup':
-        return this.scenario()?.followUpChips ?? [];
+      case 'outcome':
+        return OUTCOME_SUGGESTIONS;
+      case 'headcount':
+        return HEADCOUNT_SUGGESTIONS;
       default:
         return [];
     }
@@ -110,26 +142,28 @@ export class EngagementService {
     const messages = [...current.messages, { role: 'partner' as const, text: trimmed }];
 
     switch (current.phase) {
-      case 'name':
+      case 'customer':
         this.state.set({
           ...current,
           customerName: trimmed,
           phase: 'size',
-          messages: [
-            ...messages,
-            { role: 'assistant', text: 'What is the company size?' },
-          ],
+          messages: [...messages, { role: 'assistant', text: QUESTIONS.size }],
         });
         break;
       case 'size':
         this.state.set({
           ...current,
           companySize: trimmed,
+          phase: 'industry',
+          messages: [...messages, { role: 'assistant', text: QUESTIONS.industry }],
+        });
+        break;
+      case 'industry':
+        this.state.set({
+          ...current,
+          industryStack: trimmed,
           phase: 'pain',
-          messages: [
-            ...messages,
-            { role: 'assistant', text: 'What is the main pain point?' },
-          ],
+          messages: [...messages, { role: 'assistant', text: QUESTIONS.pain }],
         });
         break;
       case 'pain': {
@@ -137,17 +171,25 @@ export class EngagementService {
         this.state.set({
           ...current,
           scenarioId: scenario.id,
-          phase: 'followup',
+          phase: 'outcome',
           customPlans: [],
           planAccepted: false,
-          messages: [...messages, { role: 'assistant', text: scenario.followUpQuestion }],
+          messages: [...messages, { role: 'assistant', text: QUESTIONS.outcome }],
         });
         break;
       }
-      case 'followup':
+      case 'outcome':
         this.state.set({
           ...current,
-          followUpAnswer: trimmed,
+          cxoOutcome: trimmed,
+          phase: 'headcount',
+          messages: [...messages, { role: 'assistant', text: QUESTIONS.headcount }],
+        });
+        break;
+      case 'headcount':
+        this.state.set({
+          ...current,
+          sessionHeadcount: trimmed,
           phase: 'done',
           intakeComplete: true,
           messages: [
@@ -295,12 +337,22 @@ export class EngagementService {
       status: intakeDone ? 'done' : 'current',
     });
 
-    if (intakeDone && current.followUpAnswer) {
+    if (intakeDone && current.cxoOutcome) {
       entries.push({
-        id: 'intake-followup',
+        id: 'intake-outcome',
         step: 'intake',
-        title: 'Follow-up captured',
-        detail: current.followUpAnswer,
+        title: 'CXO outcome',
+        detail: current.cxoOutcome,
+        status: 'done',
+      });
+    }
+
+    if (intakeDone && current.sessionHeadcount) {
+      entries.push({
+        id: 'intake-headcount',
+        step: 'intake',
+        title: 'Session size',
+        detail: `${current.sessionHeadcount} people`,
         status: 'done',
       });
     }
@@ -375,14 +427,18 @@ export class EngagementService {
 
   private intakeProgress(current: EngagementState): string {
     switch (current.phase) {
-      case 'name':
+      case 'customer':
         return 'Waiting for the customer name';
       case 'size':
         return `${current.customerName} · waiting for company size`;
+      case 'industry':
+        return `${current.customerName} · waiting for industry and stack`;
       case 'pain':
         return `${current.customerName} · waiting for the pain point`;
-      case 'followup':
-        return `${current.customerName} · waiting for the follow-up`;
+      case 'outcome':
+        return `${current.customerName} · waiting for the CXO outcome`;
+      case 'headcount':
+        return `${current.customerName} · waiting for session headcount`;
       default:
         return 'Intake in progress';
     }

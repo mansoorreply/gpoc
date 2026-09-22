@@ -3,7 +3,9 @@
     <h2>Plan</h2>
     <p>
       Assessment for {{ engagement.customerName() }} · {{ engagement.scenario()?.label }} ·
-      {{ engagement.companySize() }} employees. Follow-up: {{ engagement.followUpAnswer() }}.
+      {{ engagement.companySize() }} employees.
+      {{ engagement.industryStack() }}. Outcome: {{ engagement.cxoOutcome() }}. Session:
+      {{ engagement.sessionHeadcount() }}.
     </p>
     @if (engagement.scenario()?.problemStatement; as problem) {
       <aside class="problem">

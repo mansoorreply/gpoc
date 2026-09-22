@@ -1,13 +1,13 @@
 <section class="panel">
   <header class="intro">
     <h2>Intake</h2>
-    <p>Describe the customer pain point. Suggested replies keep the demo moving.</p>
+    <p>Hackathon agent walks the account draft. Suggested replies keep the demo moving.</p>
   </header>
 
-  <div class="thread" aria-live="polite">
+  <div #thread class="thread" aria-live="polite">
     @for (message of engagement.messages(); track $index) {
       <article class="bubble" [class.partner]="message.role === 'partner'">
-        <p class="who">{{ message.role === 'assistant' ? 'Assistant' : 'You' }}</p>
+        <p class="who">{{ message.role === 'assistant' ? 'Hackathon agent' : 'You' }}</p>
         <p>{{ message.text }}</p>
       </article>
     }
