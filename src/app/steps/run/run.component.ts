@@ -210,6 +210,54 @@ export class Run {
     this.dafRequested.set(true);
   }
 
+  protected downloadArtifacts(): void {
+    const customer = this.engagement.customerName().trim() || 'Customer';
+    const scenario = this.engagement.scenario()?.label ?? 'Assessment';
+    const summary = this.summary();
+    const markdown = [
+      `# Assessment readout — ${customer}`,
+      '',
+      `**Scenario:** ${scenario}`,
+      '',
+      '## Issue summary',
+      '',
+      summary.issueSummary,
+      '',
+      '## Key metrics',
+      '',
+      ...summary.keyMetrics.map((m) => `- **${m.label}:** ${m.value}`),
+      '',
+      '## Identified issues',
+      '',
+      ...summary.identifiedIssues.map((item) => `- ${item}`),
+      '',
+      '## Key decisions',
+      '',
+      ...summary.keyDecisions.map((item) => `- ${item}`),
+      '',
+      '## Follow-ups',
+      '',
+      ...(summary.followUps.length
+        ? summary.followUps.map((item) => `- ${item}`)
+        : ['- None recorded.']),
+      '',
+    ].join('\n');
+
+    const slug =
+      customer
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'assessment';
+    const filename = `${slug}-assessment-readout.md`;
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   protected complete(): void {
     this.engagement.completeCycle();
   }
