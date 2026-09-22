@@ -1,0 +1,70 @@
+<button
+  type="button"
+  class="trigger"
+  (click)="toggle()"
+  [attr.aria-expanded]="open()"
+  aria-label="Open activity telemetry"
+>
+  <mat-icon>timeline</mat-icon>
+  <span class="trigger-label">Telemetry</span>
+  @if (telemetry.count()) {
+    <span class="badge">{{ telemetry.count() }}</span>
+  }
+</button>
+
+@if (open()) {
+  <div class="backdrop" (click)="close()"></div>
+}
+
+<aside
+  class="drawer"
+  [class.open]="open()"
+  role="dialog"
+  aria-label="Activity telemetry"
+  [attr.aria-hidden]="!open()"
+>
+  <header class="drawer-head">
+    <div>
+      <p class="eyebrow">This session</p>
+      <h2>Activity telemetry</h2>
+      <p class="sub">{{ telemetry.count() }} recorded {{ telemetry.count() === 1 ? 'event' : 'events' }}</p>
+    </div>
+    <button mat-icon-button type="button" (click)="close()" aria-label="Close telemetry">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <div class="drawer-body">
+    @if (entries().length) {
+      <ol class="feed">
+        @for (event of entries(); track event.id) {
+          <li class="event" [attr.data-category]="event.category">
+            <span class="icon" aria-hidden="true">
+              <mat-icon>{{ meta(event.category).icon }}</mat-icon>
+            </span>
+            <div class="content">
+              <div class="line">
+                <span class="tag">{{ meta(event.category).label }}</span>
+                <span class="clock">{{ formatClock(event.timestamp) }}</span>
+                <span class="elapsed">{{ formatElapsed(event.elapsedMs) }}</span>
+              </div>
+              <p class="action">{{ event.action }}</p>
+              @if (event.detail) {
+                <p class="detail">{{ event.detail }}</p>
+              }
+            </div>
+          </li>
+        }
+      </ol>
+    } @else {
+      <p class="empty">No activity recorded yet.</p>
+    }
+  </div>
+
+  <footer class="drawer-foot">
+    <button mat-stroked-button type="button" (click)="clear()" [disabled]="!telemetry.count()">
+      <mat-icon>delete_sweep</mat-icon>
+      Clear log
+    </button>
+  </footer>
+</aside>
