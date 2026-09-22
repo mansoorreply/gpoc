@@ -2,138 +2,180 @@
   <header class="intro">
     <h2>Run</h2>
     <p>
-      Choose Google product solutions for {{ engagement.customerName() }} based on
-      {{ engagement.scenario()?.label }}.
+      Assessment readout for {{ engagement.customerName() }} ·
+      {{ engagement.scenario()?.label }}. Review findings, select use cases, and request funding.
     </p>
-    @if (engagement.scenario()?.problemStatement; as problem) {
-      <aside class="problem">
-        <strong>Problem statement</strong>
-        <p>{{ problem }}</p>
-      </aside>
-    }
   </header>
 
-  <mat-tab-group
-    animationDuration="200ms"
-    [selectedIndex]="selectedTab()"
-    (selectedIndexChange)="onTabChange($event)"
-  >
-    <mat-tab label="Implementation">
-      <div class="tab-body">
-        @if (!engagement.selectedProducts().length) {
-          <div class="empty">
-            <p>No solutions selected for implementation yet.</p>
-            <button mat-flat-button color="primary" type="button" (click)="showAiSuggestions()">
-              Show AI suggested solutions
-            </button>
-          </div>
-        } @else {
-          <div class="section-head">
-            <h3>Selected for implementation</h3>
-            <button mat-stroked-button type="button" (click)="showAiSuggestions()">
-              Show AI suggested solutions
-            </button>
-          </div>
+  <section class="summary-board" aria-label="Assessment summary">
+    <article class="summary-block issue">
+      <h3>Issue summary</h3>
+      <p>{{ summary().issueSummary }}</p>
+    </article>
 
-          <div class="cards">
-            @for (solution of engagement.selectedProductDetails(); track solution.name) {
-              <mat-card>
-                <mat-card-header>
-                  <mat-card-title>{{ solution.name }}</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <p>{{ solution.fit }}</p>
-                  <mat-chip-set aria-label="Google products">
-                    @for (product of solution.googleProducts; track product) {
-                      <mat-chip>{{ product }}</mat-chip>
-                    }
-                  </mat-chip-set>
-                </mat-card-content>
-              </mat-card>
-            }
+    <article class="summary-block metrics">
+      <h3>Key metrics</h3>
+      <dl class="metric-grid">
+        @for (metric of summary().keyMetrics; track metric.label) {
+          <div class="metric">
+            <dt>{{ metric.label }}</dt>
+            <dd>{{ metric.value }}</dd>
           </div>
         }
+      </dl>
+    </article>
 
-        @if (engagement.scenario(); as scenario) {
-          <aside class="summary">
-            <p>Illustrative deal value {{ money(scenario.dealValue) }}</p>
-            <p>
-              Partner commission {{ scenario.commissionPercent }}% ·
-              {{ money(engagement.commissionAmount()) }}
-            </p>
-          </aside>
-        }
+    <div class="summary-columns">
+      <article class="summary-block">
+        <h3>Identified issues</h3>
+        <ul>
+          @for (item of summary().identifiedIssues; track item) {
+            <li>{{ item }}</li>
+          }
+        </ul>
+      </article>
 
-        @if (engagement.cycleComplete()) {
-          <p class="success" role="status">
-            Cycle complete. The partner incentive for Northstar Partners is recorded for this
-            engagement.
-          </p>
-        } @else {
-          <button
-            mat-flat-button
-            color="primary"
-            type="button"
-            [disabled]="!engagement.selectedProducts().length"
-            (click)="complete()"
-          >
-            Mark cycle complete
-          </button>
-        }
+      <article class="summary-block">
+        <h3>Key decisions</h3>
+        <ul>
+          @for (item of summary().keyDecisions; track item) {
+            <li>{{ item }}</li>
+          }
+        </ul>
+      </article>
+    </div>
+
+    <article class="summary-block">
+      <h3>Follow-ups</h3>
+      @if (summary().followUps.length) {
+        <ul>
+          @for (item of summary().followUps; track item) {
+            <li>{{ item }}</li>
+          }
+        </ul>
+      } @else {
+        <p class="muted">No follow-ups recorded.</p>
+      }
+    </article>
+  </section>
+
+  <section class="solutions" aria-label="Suggested use cases">
+    <div class="section-head">
+      <div>
+        <h3>Suggested use cases</h3>
+        <p class="hint">Select the combinations to take into implementation and funding.</p>
       </div>
-    </mat-tab>
+    </div>
 
-    <mat-tab label="AI suggested solutions">
-      <div class="tab-body">
-        <p class="hint">
-          AI-recommended Google solution combinations for this assessment. Select the ones to use
-          in the actual implementation.
-        </p>
-
-        <div class="cards">
-          @for (solution of engagement.scenario()?.products ?? []; track solution.name) {
-            <mat-card [class.selected]="engagement.selectedProducts().includes(solution.name)">
-              <mat-card-header>
-                <mat-card-title>
-                  <span>{{ solution.name }}</span>
-                  <button
-                    mat-icon-button
-                    type="button"
-                    class="info-btn"
-                    [matTooltip]="solution.rationale"
-                    matTooltipShowDelay="100"
-                    aria-label="Why this solution is suggested"
-                  >
-                    <mat-icon>info</mat-icon>
-                  </button>
-                </mat-card-title>
-              </mat-card-header>
-              <mat-card-content>
-                <p class="fit">{{ solution.fit }}</p>
-                <mat-chip-set aria-label="Google products in this combination">
-                  @for (product of solution.googleProducts; track product) {
-                    <mat-chip>{{ product }}</mat-chip>
+    <div class="cards">
+      @for (solution of engagement.scenario()?.products ?? []; track solution.name) {
+        <mat-card [class.selected]="engagement.selectedProducts().includes(solution.name)">
+          @if (isUseCase(solution)) {
+            <mat-card-header class="use-case-header">
+              <mat-card-title>{{ solution.title ?? solution.name }}</mat-card-title>
+              @if (solution.overallScore != null) {
+                <span class="score-badge" aria-label="Overall score {{ solution.overallScore }}">
+                  {{ solution.overallScore }}
+                </span>
+              }
+            </mat-card-header>
+            <mat-card-content>
+              @if (solution.description) {
+                <p class="use-case-desc">{{ solution.description }}</p>
+              }
+              @if (solution.tags?.length) {
+                <mat-chip-set aria-label="Use case tags">
+                  @for (tag of solution.tags; track tag) {
+                    <mat-chip>{{ tag }}</mat-chip>
                   }
                 </mat-chip-set>
-              </mat-card-content>
-              <mat-card-actions>
-                <mat-checkbox
-                  [checked]="engagement.selectedProducts().includes(solution.name)"
-                  (change)="setProduct(solution.name, $event.checked)"
-                >
-                  Use for implementation
-                </mat-checkbox>
-              </mat-card-actions>
-            </mat-card>
+              }
+              @if (solution.accelerator; as accelerator) {
+                <div class="accelerator">
+                  <div class="accelerator-head">
+                    <span class="accelerator-name">{{ accelerator.name }}</span>
+                    <span class="gemini-fit">Gemini fit {{ accelerator.geminiFit }}</span>
+                  </div>
+                  <p>{{ accelerator.description }}</p>
+                </div>
+              }
+              <dl class="score-row">
+                <div>
+                  <dt>Value</dt>
+                  <dd>{{ solution.value }}</dd>
+                </div>
+                <div>
+                  <dt>Feasibility</dt>
+                  <dd>{{ solution.feasibility }}</dd>
+                </div>
+                <div>
+                  <dt>Risk</dt>
+                  <dd>{{ solution.risk }}</dd>
+                </div>
+              </dl>
+            </mat-card-content>
+          } @else {
+            <mat-card-header>
+              <mat-card-title>{{ solution.name }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <p class="fit">{{ solution.fit }}</p>
+              <p class="rationale">{{ solution.rationale }}</p>
+              <mat-chip-set aria-label="Google products in this combination">
+                @for (product of solution.googleProducts; track product) {
+                  <mat-chip>{{ product }}</mat-chip>
+                }
+              </mat-chip-set>
+            </mat-card-content>
           }
-        </div>
+          <mat-card-actions>
+            <mat-checkbox
+              [checked]="engagement.selectedProducts().includes(solution.name)"
+              (change)="setProduct(solution.name, $event.checked)"
+            >
+              Use for implementation
+            </mat-checkbox>
+          </mat-card-actions>
+        </mat-card>
+      }
+    </div>
+  </section>
 
-        @if (engagement.selectedProducts().length) {
-          <button mat-flat-button color="primary" type="button" (click)="selectedTab.set(0)">
-            Continue with {{ engagement.selectedProducts().length }} selected
-          </button>
-        }
-      </div>
-    </mat-tab>
-  </mat-tab-group>
+  <div class="actions">
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="!engagement.selectedProducts().length || dafRequested()"
+      (click)="requestDafFunding()"
+    >
+      @if (dafRequested()) {
+        DAF funding requested
+      } @else {
+        Request for DAF funding
+      }
+    </button>
+
+    @if (engagement.cycleComplete()) {
+      <p class="success" role="status">
+        Cycle complete. The partner incentive for Northstar Partners is recorded for this
+        engagement.
+      </p>
+    } @else {
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        [disabled]="!engagement.selectedProducts().length"
+        (click)="complete()"
+      >
+        Mark cycle complete
+      </button>
+    }
+  </div>
+
+  @if (dafRequested()) {
+    <p class="daf-note" role="status">
+      Dummy request recorded for the selected use cases. No funding workflow is connected yet.
+    </p>
+  }
 </section>

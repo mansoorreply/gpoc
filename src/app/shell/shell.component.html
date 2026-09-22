@@ -16,7 +16,7 @@
     </div>
   </header>
 
-  <nav mat-tab-nav-bar [tabPanel]="tabPanel" aria-label="Engagement steps">
+  <nav class="step-nav" mat-tab-nav-bar [tabPanel]="tabPanel" aria-label="Engagement steps">
     @for (tab of tabs; track tab.id) {
       <a
         mat-tab-link
@@ -40,7 +40,6 @@
       <main class="content">
         <router-outlet />
       </main>
-      <app-engagement-history />
     </div>
   </mat-tab-nav-panel>
 </div>

@@ -1,10 +1,13 @@
 import { Injectable, computed, signal } from '@angular/core';
 import {
-  CollectDetails,
+  ActivityProgress,
+  ActivityStatus,
+  CollectState,
   EngagementPlanItem,
   EngagementState,
   HistoryEntry,
-  PlanItem,
+  Persona,
+  PlanActivity,
   Scenario,
   StepId,
 } from './engagement.models';
@@ -43,6 +46,44 @@ const OUTCOME_SUGGESTIONS = [
   'Ship modernization MVP in 6 weeks',
 ];
 const HEADCOUNT_SUGGESTIONS = ['4', '5', '6', '8'];
+
+const TERMINAL_STATUSES: ReadonlySet<ActivityStatus> = new Set(['done', 'skipped']);
+
+function createEmptyProgress(activityId: string): ActivityProgress {
+  return {
+    activityId,
+    status: 'not_started',
+    comments: '',
+    decisions: '',
+    fileNames: [],
+  };
+}
+
+function buildCollectState(plans: EngagementPlanItem[]): CollectState {
+  const activities: Record<string, ActivityProgress> = {};
+  for (const plan of plans) {
+    activities[plan.id] = createEmptyProgress(plan.id);
+  }
+  return { activities, submitted: false };
+}
+
+function countTerminal(collect: CollectState | null): { done: number; total: number } {
+  if (!collect) {
+    return { done: 0, total: 0 };
+  }
+  const items = Object.values(collect.activities);
+  const total = items.length;
+  const done = items.filter((item) => TERMINAL_STATUSES.has(item.status)).length;
+  return { done, total };
+}
+
+function isCollectReady(collect: CollectState | null): boolean {
+  if (!collect) {
+    return false;
+  }
+  const items = Object.values(collect.activities);
+  return items.length > 0 && items.every((item) => TERMINAL_STATUSES.has(item.status));
+}
 
 function createInitialState(): EngagementState {
   return {
@@ -103,6 +144,12 @@ export class EngagementService {
     return [...aiPlans, ...this.state().customPlans];
   });
 
+  readonly personas = computed<Persona[]>(() => this.scenario()?.personas ?? []);
+
+  readonly collectProgress = computed(() => countTerminal(this.state().collect));
+
+  readonly collectReady = computed(() => isCollectReady(this.state().collect));
+
   readonly history = computed<HistoryEntry[]>(() => this.buildHistory(this.state(), this.scenario()));
 
   readonly commissionAmount = computed(() => {
@@ -131,6 +178,10 @@ export class EngagementService {
         return [];
     }
   });
+
+  activityProgress(activityId: string): ActivityProgress | null {
+    return this.state().collect?.activities[activityId] ?? null;
+  }
 
   reply(text: string): void {
     const trimmed = text.trim();
@@ -174,6 +225,7 @@ export class EngagementService {
           phase: 'outcome',
           customPlans: [],
           planAccepted: false,
+          collect: null,
           messages: [...messages, { role: 'assistant', text: QUESTIONS.outcome }],
         });
         break;
@@ -208,19 +260,26 @@ export class EngagementService {
     if (!this.state().intakeComplete) {
       return;
     }
-    this.state.update((current) => ({ ...current, planAccepted: true }));
+    const plans = this.plans();
+    this.state.update((current) => ({
+      ...current,
+      planAccepted: true,
+      collect: buildCollectState(plans),
+      selectedProducts: [],
+      cycleComplete: false,
+    }));
   }
 
-  addPlan(item: PlanItem): void {
+  addPlan(item: Pick<PlanActivity, 'title' | 'purpose' | 'duration'> & { detail?: string }): void {
     if (!this.state().intakeComplete) {
       return;
     }
 
     const title = item.title.trim();
     const purpose = item.purpose.trim();
-    const attendees = item.attendees.trim();
     const duration = item.duration.trim();
-    if (!title || !purpose || !attendees || !duration) {
+    const detail = (item.detail ?? purpose).trim();
+    if (!title || !purpose || !duration) {
       return;
     }
 
@@ -228,8 +287,10 @@ export class EngagementService {
       id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       title,
       purpose,
-      attendees,
       duration,
+      detail,
+      outcomes: [],
+      personaIds: [],
       source: 'manual',
     };
 
@@ -237,6 +298,7 @@ export class EngagementService {
       ...current,
       customPlans: [...current.customPlans, plan],
       planAccepted: false,
+      collect: null,
     }));
   }
 
@@ -245,18 +307,59 @@ export class EngagementService {
       ...current,
       customPlans: current.customPlans.filter((item) => item.id !== id),
       planAccepted: false,
+      collect: null,
     }));
   }
 
-  submitCollect(details: CollectDetails): void {
-    if (!this.state().planAccepted) {
+  updateActivityProgress(
+    activityId: string,
+    patch: Partial<Pick<ActivityProgress, 'status' | 'comments' | 'decisions' | 'fileNames'>>,
+  ): void {
+    const current = this.state();
+    if (!current.planAccepted || !current.collect || current.collect.submitted) {
       return;
     }
-    this.state.update((current) => ({ ...current, collect: details }));
+    const existing = current.collect.activities[activityId];
+    if (!existing) {
+      return;
+    }
+
+    const next: ActivityProgress = {
+      ...existing,
+      activityId,
+      comments: patch.comments !== undefined ? patch.comments : existing.comments,
+      decisions: patch.decisions !== undefined ? patch.decisions : existing.decisions,
+      fileNames: patch.fileNames !== undefined ? patch.fileNames : existing.fileNames,
+      status: patch.status !== undefined ? patch.status : existing.status,
+    };
+
+    this.state.update((state) => ({
+      ...state,
+      collect: {
+        activities: {
+          ...state.collect!.activities,
+          [activityId]: next,
+        },
+        submitted: false,
+      },
+    }));
+  }
+
+  submitCollect(): boolean {
+    const current = this.state();
+    if (!current.planAccepted || !isCollectReady(current.collect)) {
+      return false;
+    }
+
+    this.state.update((state) => ({
+      ...state,
+      collect: state.collect ? { ...state.collect, submitted: true } : null,
+    }));
+    return true;
   }
 
   toggleProduct(name: string): void {
-    if (!this.state().collect) {
+    if (!this.state().collect?.submitted) {
       return;
     }
 
@@ -270,7 +373,7 @@ export class EngagementService {
   }
 
   completeCycle(): void {
-    if (!this.state().collect || this.state().selectedProducts.length === 0) {
+    if (!this.state().collect?.submitted || this.state().selectedProducts.length === 0) {
       return;
     }
     this.state.update((current) => ({ ...current, cycleComplete: true }));
@@ -286,7 +389,7 @@ export class EngagementService {
       case 'collect':
         return current.planAccepted;
       case 'run':
-        return current.collect !== null;
+        return current.collect?.submitted === true;
     }
   }
 
@@ -298,7 +401,7 @@ export class EngagementService {
       case 'plan':
         return current.planAccepted;
       case 'collect':
-        return current.collect !== null;
+        return current.collect?.submitted === true;
       case 'run':
         return current.cycleComplete;
     }
@@ -312,7 +415,7 @@ export class EngagementService {
     if (!current.planAccepted) {
       return '/plan';
     }
-    if (!current.collect) {
+    if (!current.collect?.submitted) {
       return '/collect';
     }
     return '/run';
@@ -373,31 +476,19 @@ export class EngagementService {
     });
 
     const collect = current.collect;
+    const progress = countTerminal(collect);
+    const collectSubmitted = collect?.submitted === true;
     entries.push({
       id: 'collect',
       step: 'collect',
-      title: 'Customer details',
-      detail: collect
-        ? `${collect.industry} · ${collect.region} · ${collect.timeline}`
+      title: 'Activity execution',
+      detail: collectSubmitted
+        ? `${progress.done}/${progress.total} activities complete`
         : current.planAccepted
-          ? 'Collect industry, timeline, and documents'
+          ? `${progress.done}/${progress.total} activities complete — finish all to continue`
           : 'Waiting on an accepted plan',
-      status: collect ? 'done' : current.planAccepted ? 'current' : 'pending',
+      status: collectSubmitted ? 'done' : current.planAccepted ? 'current' : 'pending',
     });
-
-    if (collect) {
-      const files =
-        collect.fileNames.length === 0
-          ? 'No documents attached'
-          : `${collect.fileNames.length} document${collect.fileNames.length === 1 ? '' : 's'} attached`;
-      entries.push({
-        id: 'collect-contact',
-        step: 'collect',
-        title: 'Primary contact',
-        detail: `${collect.primaryContact} · ${collect.budgetBand} · ${files}`,
-        status: 'done',
-      });
-    }
 
     const selected = current.selectedProducts;
     entries.push({
@@ -406,10 +497,10 @@ export class EngagementService {
       title: 'Google solutions',
       detail: selected.length
         ? selected.join(', ')
-        : collect
+        : collectSubmitted
           ? 'Choose an AI suggested solution combination'
-          : 'Waiting on collected details',
-      status: current.cycleComplete ? 'done' : collect ? 'current' : 'pending',
+          : 'Waiting on activity execution',
+      status: current.cycleComplete ? 'done' : collectSubmitted ? 'current' : 'pending',
     });
 
     if (current.cycleComplete) {

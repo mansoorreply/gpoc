@@ -1,81 +1,165 @@
-<section class="panel">
-  <header class="intro">
-    <h2>Collect</h2>
-    <p>Capture a few details and any documents for {{ engagement.customerName() }}.</p>
-  </header>
+<mat-drawer-container class="collect-layout" [hasBackdrop]="false">
+  <mat-drawer-content>
+    <section class="panel">
+      <header class="intro">
+        <h2>Collect</h2>
+        <p>
+          Execute the assessment for {{ engagement.customerName() }} ·
+          {{ engagement.scenario()?.label }}. Update status, documents, comments, and decisions
+          for each activity.
+        </p>
+        <aside class="progress">
+          <strong>Progress</strong>
+          <p>
+            {{ progress().done }} of {{ progress().total }} activities complete (Done or Skipped).
+            @if (!ready() && !submitted()) {
+              Finish every activity to continue to solutions.
+            }
+            @if (submitted()) {
+              Execution submitted — you can still review activity details.
+            }
+          </p>
+        </aside>
+      </header>
 
-  <form class="grid" [formGroup]="form" (ngSubmit)="submit()">
-    <mat-form-field appearance="outline">
-      <mat-label>Industry</mat-label>
-      <mat-select formControlName="industry" [errorStateMatcher]="matcher">
-        @for (option of industries; track option) {
-          <mat-option [value]="option">{{ option }}</mat-option>
+      <section class="workflow-section" aria-label="Activity execution workflow">
+        <h3>Activity workflow</h3>
+        <p class="hint">Click an activity to update status, upload documents, and record comments or decisions.</p>
+
+        <div class="workflow" role="list">
+          @for (item of engagement.plans(); track item.id; let last = $last; let index = $index) {
+            <div class="workflow-step" role="listitem">
+              <button
+                type="button"
+                class="workflow-node"
+                [class.selected]="selectedActivityId() === item.id"
+                [attr.data-status]="statusFor(item.id)"
+                (click)="selectActivity(item)"
+              >
+                <span class="step-index">{{ index + 1 }}</span>
+                <span class="node-body">
+                  <span class="node-title">{{ item.title }}</span>
+                  <span class="node-purpose">{{ item.purpose }}</span>
+                  <span class="node-meta">
+                    <span>{{ item.duration }}</span>
+                    <span class="status-chip" [attr.data-status]="statusFor(item.id)">
+                      {{ statusLabel(statusFor(item.id)) }}
+                    </span>
+                    @if (canQuickSkip(item.id)) {
+                      <button
+                        mat-stroked-button
+                        type="button"
+                        class="skip-btn"
+                        (click)="skipActivity(item, $event)"
+                      >
+                        Skip
+                      </button>
+                    }
+                  </span>
+                </span>
+              </button>
+              @if (!last) {
+                <div class="connector" aria-hidden="true"></div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
+      <div class="actions">
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          [disabled]="!ready() && !submitted()"
+          (click)="continueToRun()"
+        >
+          Continue to solutions
+        </button>
+        @if (!ready() && !submitted()) {
+          <span class="gate-hint">Mark every activity Done or Skipped to unlock.</span>
         }
-      </mat-select>
-      @if (attempted() && form.controls.industry.invalid) {
-        <mat-error>Industry is required</mat-error>
-      }
-    </mat-form-field>
+      </div>
+    </section>
+  </mat-drawer-content>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Region</mat-label>
-      <mat-select formControlName="region" [errorStateMatcher]="matcher">
-        @for (option of regions; track option) {
-          <mat-option [value]="option">{{ option }}</mat-option>
-        }
-      </mat-select>
-      @if (attempted() && form.controls.region.invalid) {
-        <mat-error>Region is required</mat-error>
-      }
-    </mat-form-field>
+  <mat-drawer
+    class="detail-drawer"
+    mode="over"
+    position="end"
+    [opened]="drawerOpen()"
+    (closedStart)="closeDrawer()"
+  >
+    @if (selectedActivity(); as activity) {
+      <div class="drawer-panel">
+        <header class="drawer-header">
+          <div>
+            <p class="eyebrow">Activity</p>
+            <h3>{{ activity.title }}</h3>
+          </div>
+          <button mat-stroked-button type="button" (click)="closeDrawer()">Close</button>
+        </header>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Timeline</mat-label>
-      <mat-select formControlName="timeline" [errorStateMatcher]="matcher">
-        @for (option of timelines; track option) {
-          <mat-option [value]="option">{{ option }}</mat-option>
-        }
-      </mat-select>
-      @if (attempted() && form.controls.timeline.invalid) {
-        <mat-error>Timeline is required</mat-error>
-      }
-    </mat-form-field>
+        <p class="drawer-duration">{{ activity.duration }}</p>
+        <p class="drawer-purpose">{{ activity.purpose }}</p>
+        <p class="drawer-detail">{{ activity.detail }}</p>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Budget band</mat-label>
-      <mat-select formControlName="budgetBand" [errorStateMatcher]="matcher">
-        @for (option of budgets; track option) {
-          <mat-option [value]="option">{{ option }}</mat-option>
-        }
-      </mat-select>
-      @if (attempted() && form.controls.budgetBand.invalid) {
-        <mat-error>Budget band is required</mat-error>
-      }
-    </mat-form-field>
+        <form class="drawer-form" [formGroup]="form" (ngSubmit)="saveActivity()">
+          <mat-form-field appearance="outline">
+            <mat-label>Status</mat-label>
+            <mat-select formControlName="status" [disabled]="submitted()">
+              @for (option of statusOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
 
-    <mat-form-field appearance="outline" class="wide">
-      <mat-label>Primary contact</mat-label>
-      <input matInput formControlName="primaryContact" autocomplete="name" [errorStateMatcher]="matcher" />
-      @if (attempted() && form.controls.primaryContact.invalid) {
-        <mat-error>Primary contact is required</mat-error>
-      }
-    </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Comments</mat-label>
+            <textarea
+              matInput
+              rows="3"
+              formControlName="comments"
+              [readonly]="submitted()"
+              placeholder="Notes from the session"
+            ></textarea>
+          </mat-form-field>
 
-    <label class="upload wide">
-      Documents
-      <input type="file" multiple (change)="onFiles($event)" />
-    </label>
+          <mat-form-field appearance="outline">
+            <mat-label>Decisions</mat-label>
+            <textarea
+              matInput
+              rows="3"
+              formControlName="decisions"
+              [readonly]="submitted()"
+              placeholder="Agreements and next steps"
+            ></textarea>
+          </mat-form-field>
 
-    @if (fileNames().length) {
-      <ul class="files wide">
-        @for (name of fileNames(); track name) {
-          <li>{{ name }}</li>
-        }
-      </ul>
+          <label class="upload">
+            Documents
+            <input type="file" multiple [disabled]="submitted()" (change)="onFiles($event)" />
+          </label>
+
+          @if (draftFileNames().length) {
+            <ul class="files">
+              @for (name of draftFileNames(); track name) {
+                <li>{{ name }}</li>
+              }
+            </ul>
+            @if (!submitted()) {
+              <button mat-button type="button" (click)="clearFiles()">Clear files</button>
+            }
+          }
+
+          @if (!submitted()) {
+            <div class="form-actions">
+              <button mat-stroked-button type="button" (click)="closeDrawer()">Cancel</button>
+              <button mat-flat-button color="primary" type="submit">Save</button>
+            </div>
+          }
+        </form>
+      </div>
     }
-
-    <div class="actions wide">
-      <button mat-flat-button color="primary" type="submit">Submit details</button>
-    </div>
-  </form>
-</section>
+  </mat-drawer>
+</mat-drawer-container>

@@ -1,93 +1,227 @@
-<section class="panel">
-  <header class="intro">
-    <h2>Plan</h2>
-    <p>
-      Assessment for {{ engagement.customerName() }} · {{ engagement.scenario()?.label }} ·
-      {{ engagement.companySize() }} employees.
-      {{ engagement.industryStack() }}. Outcome: {{ engagement.cxoOutcome() }}. Session:
-      {{ engagement.sessionHeadcount() }}.
-    </p>
-    @if (engagement.scenario()?.problemStatement; as problem) {
-      <aside class="problem">
-        <strong>Problem statement</strong>
-        <p>{{ problem }}</p>
-      </aside>
-    }
-  </header>
+<mat-drawer-container class="plan-layout" [hasBackdrop]="false">
+  <mat-drawer-content>
+    <section class="panel">
+      <header class="intro">
+        <h2>Plan</h2>
+        <p>
+          Assessment for {{ engagement.customerName() }} · {{ engagement.scenario()?.label }} ·
+          {{ engagement.companySize() }} employees.
+          {{ engagement.industryStack() }}. Outcome: {{ engagement.cxoOutcome() }}. Session:
+          {{ engagement.sessionHeadcount() }}.
+        </p>
+        @if (engagement.scenario()?.problemStatement; as problem) {
+          <aside class="problem">
+            <strong>Problem statement</strong>
+            <p>{{ problem }}</p>
+          </aside>
+        }
+      </header>
 
-  <div class="cards">
-    @for (item of engagement.plans(); track item.id) {
-      <mat-card>
-        <mat-card-header>
-          <mat-card-title>
-            <span>{{ item.title }}</span>
-            @if (item.source === 'ai') {
-              <span class="tag ai">AI suggestion</span>
-            } @else {
-              <span class="tag manual">Manual</span>
-            }
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p>{{ item.purpose }}</p>
-          <p><strong>Who:</strong> {{ item.attendees }}</p>
-          <p><strong>Duration:</strong> {{ item.duration }}</p>
-          @if (item.source === 'manual') {
-            <button mat-button type="button" color="warn" (click)="removePlan(item.id)">
-              Remove
-            </button>
+      @if (engagement.personas().length) {
+        <section class="personas" aria-label="Engagement personas">
+          <h3>People involved</h3>
+          <div class="persona-groups">
+            <div class="persona-group">
+              <h4>Client</h4>
+              <div class="persona-list">
+                @for (persona of clientPersonas(); track persona.id) {
+                  <button
+                    type="button"
+                    class="persona-chip"
+                    [class.selected]="isPersonaSelected(persona)"
+                    (click)="selectPersona(persona)"
+                  >
+                    <span class="avatar">{{ initials(persona.name) }}</span>
+                    <span class="meta">
+                      <span class="name">{{ persona.name }}</span>
+                      <span class="role">{{ persona.role }}</span>
+                      <span class="org">{{ persona.organization }}</span>
+                    </span>
+                  </button>
+                }
+              </div>
+            </div>
+            <div class="persona-group">
+              <h4>Partner</h4>
+              <div class="persona-list">
+                @for (persona of partnerPersonas(); track persona.id) {
+                  <button
+                    type="button"
+                    class="persona-chip partner"
+                    [class.selected]="isPersonaSelected(persona)"
+                    (click)="selectPersona(persona)"
+                  >
+                    <span class="avatar">{{ initials(persona.name) }}</span>
+                    <span class="meta">
+                      <span class="name">{{ persona.name }}</span>
+                      <span class="role">{{ persona.role }}</span>
+                      <span class="org">{{ persona.organization }}</span>
+                    </span>
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        </section>
+      }
+
+      <section class="workflow-section" aria-label="Assessment activity workflow">
+        <h3>Activity workflow</h3>
+        <p class="hint">Click an activity to open details. Click a persona to highlight their activities.</p>
+
+        <div class="workflow" role="list">
+          @for (item of engagement.plans(); track item.id; let last = $last; let index = $index) {
+            <div class="workflow-step" role="listitem">
+              <button
+                type="button"
+                class="workflow-node"
+                [class.selected]="isActivitySelected(item)"
+                [class.highlighted]="isActivityHighlighted(item)"
+                [class.manual]="item.source === 'manual'"
+                (click)="selectActivity(item)"
+              >
+                <span class="step-index">{{ index + 1 }}</span>
+                <span class="node-body">
+                  <span class="node-title">{{ item.title }}</span>
+                  <span class="node-purpose">{{ item.purpose }}</span>
+                  <span class="node-meta">
+                    <span>{{ item.duration }}</span>
+                    @if (item.source === 'ai') {
+                      <span class="tag ai">AI</span>
+                    } @else {
+                      <span class="tag manual">Manual</span>
+                    }
+                  </span>
+                </span>
+              </button>
+              @if (!last) {
+                <div class="connector" aria-hidden="true"></div>
+              }
+            </div>
           }
-        </mat-card-content>
-      </mat-card>
-    }
-  </div>
+        </div>
+      </section>
 
-  @if (showAddForm()) {
-    <form class="add-form" [formGroup]="form" (ngSubmit)="addPlan()">
-      <h3>Add plan manually</h3>
+      @if (showAddForm()) {
+        <form class="add-form" [formGroup]="form" (ngSubmit)="addPlan()">
+          <h3>Add activity manually</h3>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Title</mat-label>
-        <input matInput formControlName="title" [errorStateMatcher]="matcher" />
-        @if (attempted() && form.controls.title.invalid) {
-          <mat-error>Title is required</mat-error>
-        }
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Title</mat-label>
+            <input matInput formControlName="title" [errorStateMatcher]="matcher" />
+            @if (attempted() && form.controls.title.invalid) {
+              <mat-error>Title is required</mat-error>
+            }
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Purpose</mat-label>
-        <textarea matInput rows="2" formControlName="purpose" [errorStateMatcher]="matcher"></textarea>
-        @if (attempted() && form.controls.purpose.invalid) {
-          <mat-error>Purpose is required</mat-error>
-        }
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Purpose</mat-label>
+            <textarea matInput rows="2" formControlName="purpose" [errorStateMatcher]="matcher"></textarea>
+            @if (attempted() && form.controls.purpose.invalid) {
+              <mat-error>Purpose is required</mat-error>
+            }
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Who</mat-label>
-        <input matInput formControlName="attendees" [errorStateMatcher]="matcher" />
-        @if (attempted() && form.controls.attendees.invalid) {
-          <mat-error>Attendees are required</mat-error>
-        }
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Duration</mat-label>
+            <input matInput formControlName="duration" [errorStateMatcher]="matcher" />
+            @if (attempted() && form.controls.duration.invalid) {
+              <mat-error>Duration is required</mat-error>
+            }
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Duration</mat-label>
-        <input matInput formControlName="duration" [errorStateMatcher]="matcher" />
-        @if (attempted() && form.controls.duration.invalid) {
-          <mat-error>Duration is required</mat-error>
-        }
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Detail (optional)</mat-label>
+            <textarea matInput rows="3" formControlName="detail"></textarea>
+          </mat-form-field>
 
-      <div class="form-actions">
-        <button mat-stroked-button type="button" (click)="cancelAdd()">Cancel</button>
-        <button mat-flat-button color="primary" type="submit">Save plan</button>
+          <div class="form-actions">
+            <button mat-stroked-button type="button" (click)="cancelAdd()">Cancel</button>
+            <button mat-flat-button color="primary" type="submit">Save activity</button>
+          </div>
+        </form>
+      } @else {
+        <button mat-stroked-button type="button" (click)="openAddForm()">Add activity manually</button>
+      }
+
+      <div class="actions">
+        <button mat-flat-button color="primary" type="button" (click)="accept()">Accept plan</button>
       </div>
-    </form>
-  } @else {
-    <button mat-stroked-button type="button" (click)="openAddForm()">Add plan manually</button>
-  }
+    </section>
+  </mat-drawer-content>
 
-  <div class="actions">
-    <button mat-flat-button color="primary" type="button" (click)="accept()">Accept plan</button>
-  </div>
-</section>
+  <mat-drawer
+    class="detail-drawer"
+    mode="over"
+    position="end"
+    [opened]="drawerOpen()"
+    (closedStart)="closeDrawer()"
+  >
+    @if (selectedActivity(); as activity) {
+      <div class="drawer-panel">
+        <header class="drawer-header">
+          <div>
+            <p class="eyebrow">Activity</p>
+            <h3>{{ activity.title }}</h3>
+          </div>
+          <button mat-stroked-button type="button" (click)="closeDrawer()">Close</button>
+        </header>
+
+        <p class="drawer-duration">{{ activity.duration }}</p>
+        <p class="drawer-purpose">{{ activity.purpose }}</p>
+        <p class="drawer-detail">{{ activity.detail }}</p>
+
+        @if (activity.outcomes.length) {
+          <div class="drawer-block">
+            <h4>Outcomes</h4>
+            <ul>
+              @for (outcome of activity.outcomes; track outcome) {
+                <li>{{ outcome }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (activityPersonas().length) {
+          <div class="drawer-block">
+            <h4>Participating personas</h4>
+            <ul class="persona-detail-list">
+              @for (persona of activityPersonas(); track persona.id) {
+                <li>
+                  <span class="side-tag" [class.partner]="persona.side === 'partner'">
+                    {{ sideLabel(persona.side) }}
+                  </span>
+                  <strong>{{ persona.name }}</strong>
+                  <span>{{ persona.role }} · {{ persona.organization }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (activity.source === 'manual') {
+          <button mat-button type="button" color="warn" (click)="removePlan(activity.id)">
+            Remove activity
+          </button>
+        }
+      </div>
+    } @else if (selectedPersona(); as persona) {
+      <div class="drawer-panel">
+        <header class="drawer-header">
+          <div>
+            <p class="eyebrow">{{ sideLabel(persona.side) }} persona</p>
+            <h3>{{ persona.name }}</h3>
+          </div>
+          <button mat-stroked-button type="button" (click)="closeDrawer()">Close</button>
+        </header>
+
+        <p class="drawer-purpose">{{ persona.role }} · {{ persona.organization }}</p>
+        <div class="drawer-block">
+          <h4>Focus</h4>
+          <p class="drawer-detail">{{ persona.focus }}</p>
+        </div>
+        <p class="hint">Highlighted activities in the workflow include this persona.</p>
+      </div>
+    }
+  </mat-drawer>
+</mat-drawer-container>
